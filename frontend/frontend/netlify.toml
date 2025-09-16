@@ -1,0 +1,7 @@
+[build]
+  publish = "frontend"
+  command = ""
+
+[template.environment]
+  BACKEND_URL = "https://your-coyeb-app.coyeb.app"
+
