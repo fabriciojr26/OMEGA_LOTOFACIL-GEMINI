@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lotofácil Ômega v2.0 — Gerador Estratégico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root { 
+      --bg: #0A0F1F; --card: #12182E; --text: #E5E7EB; --accent: #22D3EE;
+      --muted: #8A93A3; --border-color: rgba(255, 255, 255, 0.07); --input-bg: #0D1224;
+      --success: #34d399; --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; } 
+    html { scroll-behavior: smooth; }
+    body { 
+      margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); 
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 16px; }
+    .heading { display: flex; align-items: center; gap: 12px; }
+    h1 { font-size: clamp(24px, 4vw, 32px); margin: 0; font-weight: 800; letter-spacing: -0.5px; }
+    .card { background: var(--card); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+    label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px; font-weight: 500;}
+    input, select { 
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text); 
+      border-radius: 12px; padding: 12px; outline: none; transition: all 0.2s; font-size: 14px;
+    }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15); }
+    .btn { 
+      background: var(--accent); color: #04121A; border: 0; padding: 12px 24px; border-radius: 12px; 
+      font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 15px; display: inline-flex;
+      align-items: center; gap: 8px;
+    }
+    .btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(34,211,238,0.2); }
+    .btn:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }
+    .loader { width: 16px; height: 16px; border: 2px solid #04121A; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .number-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 10px; }
+    .num-cell {
+      width: 100%; aspect-ratio: 1/1; border: 1px solid var(--border-color); border-radius: 50%;
+      display: grid; place-items: center; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    }
+    .num-cell:hover { background: var(--input-bg); border-color: var(--muted); }
+    .num-cell.selected { background: var(--accent); color: var(--input-bg); border-color: var(--accent); font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border-color); }
+    th { color: var(--muted); font-weight: 500; font-size: 13px; }
+    .ball {
+      width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%;
+      font-size: 13px; font-weight: 500; background: var(--input-bg); border: 1px solid var(--border-color);
+    }
+    .ball.repeated { background: #1E40AF; border-color: #3B82F6; }
+    .footer { margin-top: 32px; font-size: 13px; color: var(--muted); text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="heading">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z" fill="url(#g)" stroke="none"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/><defs><linearGradient id="g" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#818cf8"/></linearGradient></defs></svg>
+      <h1>Lotofácil Ômega v2.0</h1>
+    </header>
+    <p style="color:var(--muted); margin: 8px 0 24px">Geração de jogos com `R` adaptativo e heurísticas probabilísticas (MEPA/CAIC).</p>
+
+    <div class="card" style="margin-bottom:24px">
+      <div class="grid">
+        <div>
+          <label for="lastDraw">Último sorteio (clique nos números ou digite)</label>
+          <input id="lastDrawInput" placeholder="1,3,5, ...">
+          <div id="numberGrid" class="number-grid"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div>
+            <label for="quantity">Quantidade de jogos (1–1000)</label>
+            <input id="quantity" type="number" min="1" max="1000" value="10">
+          </div>
+          <div>
+            <label for="k">Alvo de acerto (k)</label>
+            <select id="k"><option value="13">13 pontos</option><option value="14">14 pontos</option><option value="15">15 pontos</option></select>
+          </div>
+          <div>
+            <label id="rRangeLabel" for="rRange">Faixa de repetição (R)</label>
+            <input id="rRange" placeholder="Ex: 8,11" value="8,11">
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:24px; display:flex; gap:12px; align-items:center;">
+        <button class="btn" id="generateBtn">Gerar Jogos</button>
+        <button class="btn" id="checkBtn" style="background-color: #334155;" disabled>Conferir Resultado</button>
+        <span id="status" style="color: var(--muted); font-size: 14px;"></span>
+      </div>
+    </div>
+
+    <div class="card" id="resultsCard" style="display: none;">
+      <div id="kpi-container" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom: 20px;"></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>#</th><th>Jogo</th><th>R</th><th>Score</th><th>P(≥k)</th><th>Acertos</th><th>Status</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="footer">Cálculos via Poisson-Binomial. Guard-rails de diversidade (Hamming, Exposição de Pares) aplicados no backend.</div>
+  </div>
+
+  <div id="modal" style="position:fixed;inset:0;display:none;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:99;">
+    <div class="card" style="width:min(680px,94vw);">
+      <h3 style="margin-top:0">Conferidor de Resultados</h3>
+      <label>Resultado do concurso (15 dezenas)</label>
+      <input id="resultInput" placeholder="Ex.: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15">
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="btn" id="runCheck">Conferir</button>
+        <button class="btn" style="background:#475569;color:var(--text)" id="closeModal">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" style="position:fixed;right:16px;bottom:16px;display:none;background:#1E293B;border:1px solid rgba(255,255,255,.12);padding:14px 16px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.35); font-weight: 500; z-index: 100;"></div>
+
+<script>
+const $ = (s) => document.getElementById(s);
+// A URL do backend será injetada pelo Netlify ou via query string. 
+// O fallback para localhost é apenas para desenvolvimento local.
+const BACKEND_URL = (window.BACKEND_URL || new URLSearchParams(window.location.search).get('backend') || 'http://localhost:8080').replace(/\/$/, '');
+let selectedNumbers = new Set();
+let LAST_PORTFOLIO = null;
+
+function setupNumberGrid() {
+  const grid = $('numberGrid');
+  for (let i = 1; i <= 25; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'num-cell';
+    cell.textContent = i;
+    cell.dataset.number = i;
+    cell.addEventListener('click', () => toggleNumber(i));
+    grid.appendChild(cell);
+  }
+}
+
+function toggleNumber(num) {
+  if (selectedNumbers.has(num)) {
+    selectedNumbers.delete(num);
+  } else {
+    if (selectedNumbers.size < 15) selectedNumbers.add(num);
+  }
+  updateUIFromSelection();
+}
+
+function updateUIFromSelection() {
+  const sorted = Array.from(selectedNumbers).sort((a, b) => a - b);
+  $('lastDrawInput').value = sorted.join(', ');
+  document.querySelectorAll('.num-cell').forEach(cell => {
+    cell.classList.toggle('selected', selectedNumbers.has(parseInt(cell.dataset.number)));
+  });
+}
+
+function parseAndUpdateSelectionFromInput() {
+    const rawInput = $('lastDrawInput').value;
+    const parsed = new Set(rawInput.split(/[ ,;]+/).map(x => parseInt(x, 10)).filter(x => x >= 1 && x <= 25));
+    selectedNumbers = new Set(Array.from(parsed).slice(0,15));
+    updateUIFromSelection();
+}
+
+async function fetchAdaptiveR() {
+    if (window.location.protocol === 'blob:') {
+      console.log("Ambiente de preview, pulando busca de R adaptativo.");
+      return;
+    }
+    try {
+        const resp = await fetch(`${BACKEND_URL}/omega/adaptive_r_suggestion`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const r = data.suggested_r_mode;
+        if(r) {
+            $('rRange').value = `${r-1},${r+1}`;
+            $('rRangeLabel').textContent = `Faixa de repetição (R) — Sugestão: ≈${r}`;
+        }
+    } catch (e) { console.error("Could not fetch adaptive R:", e); }
+}
+
+async function handleGeneration() {
+  const quantity = Math.min(1000, Math.max(1, parseInt($('quantity').value, 10) || 10));
+  const k = parseInt($('k').value, 10);
+  const rRangeInput = $('rRange').value.split(',').map(n => parseInt(n.trim()));
+  const statusEl = $('status'), generateBtn = $('generateBtn'), resultsCard = $('resultsCard'), checkBtn = $('checkBtn');
+  
+  if (window.location.protocol === 'blob:') {
+    statusEl.textContent = 'A geração de jogos não funciona no modo de preview.';
+    return;
+  }
+  
+  if (!BACKEND_URL || BACKEND_URL === 'http://localhost:8080' && window.location.protocol !== 'http:') {
+      statusEl.textContent = 'Erro: BACKEND_URL não configurada para produção.';
+      return;
+  }
+  
+  if (selectedNumbers.size !== 15) { statusEl.textContent = 'Erro: Selecione exatamente 15 dezenas.'; return; }
+  
+  statusEl.textContent = 'Gerando...';
+  generateBtn.disabled = true;
+  checkBtn.disabled = true;
+  generateBtn.innerHTML = '<div class="loader"></div> Gerando...';
+  resultsCard.style.display = 'none';
+
+  const body = {
+    ultimo: Array.from(selectedNumbers).sort((a,b)=>a-b),
+    N: Math.min(5000, Math.max(200, quantity * 40)),
+    R_mode: parseInt($('rRange').value.split(',')[0]) + 1 || 9, 
+    R_range: [rRangeInput[0] || 8, rRangeInput[1] || 11], K: quantity, k_tail: k
+  };
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/omega/from_last_draw`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    });
+    if (!response.ok) throw new Error((await response.json()).detail || 'Erro no servidor.');
+    const data = await response.json();
+    LAST_PORTFOLIO = data;
+    statusEl.textContent = `Sucesso! ${data.K} jogos gerados.`;
+    
+    $('kpi-container').innerHTML = `
+      <span class="kpi-pill">P(≥${k}) Portfólio: <b>${(data.p_success_ge_k * 100).toFixed(2)}%</b></span>
+      <span class="kpi-pill">Repetição (R): ${data.R_range[0]}–${data.R_range[1]}</span>
+      <span class="kpi-pill">Seed: ${data.seed_used}</span>
+    `;
+
+    const tbody = $('tbody');
+    tbody.innerHTML = '';
+    data.results.forEach((r, i) => {
+      const numsHtml = r.nums.map(n => `<div class="ball ${selectedNumbers.has(n) ? 'repeated' : ''}">${n}</div>`).join('');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td style="display:flex; flex-wrap:wrap; gap:6px;">${numsHtml}</td>
+        <td><b>${r.R}</b></td>
+        <td>${r.score.toFixed(3)}</td>
+        <td>${(r.q_ge_k * 100).toFixed(2)}%</td>
+        <td id="hit_${i}">-</td>
+        <td id="flag_${i}">-</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    resultsCard.style.display = 'block';
+    checkBtn.disabled = false;
+    checkBtn.style.backgroundColor = '';
+    window.scrollTo({ top: resultsCard.offsetTop - 20, behavior: 'smooth' });
+  } catch (error) {
+    statusEl.textContent = `Falha: ${error.message}. Verifique se o backend está online.`;
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.innerHTML = 'Gerar Jogos';
+  }
+}
+
+function showModal(v=true){ $('modal').style.display = v ? 'flex' : 'none'; }
+function toast(msg){ const t=$('toast'); t.innerHTML=msg; t.style.display='block'; setTimeout(()=>t.style.display='none', 5000); }
+function parseNums(s){ return s.split(/[ ,;]+/).map(x=>parseInt(x,10)).filter(x=>!isNaN(x)); }
+function parseSet(s){ const a=new Set(parseNums(s)); if(a.size!==15) return null; for(const x of a){ if(x<1||x>25) return null; } return a; }
+
+function countHits(resSet, arr){ let c=0; for(const n of arr){ if(resSet.has(n)) c++; } return c; }
+function classify(hit){
+  if(hit>=15) return {label:'JACKPOT', color: 'var(--accent)'};
+  if(hit>=14) return {label:'EXCELENTE', color: 'var(--accent)'};
+  if(hit>=13) return {label:'PREMIADO', color: 'var(--success)'};
+  if(hit>=11) return {label:'PRÊMIO', color: '#a3e635'};
+  return {label:'-', color:'var(--muted)'};
+}
+
+function runChecker(){
+  if(!LAST_PORTFOLIO || !Array.isArray(LAST_PORTFOLIO.results) || LAST_PORTFOLIO.results.length===0){ toast('Gere os jogos primeiro.'); return; }
+  const setRes = parseSet($('resultInput').value);
+  if(!setRes){ toast('Informe 15 dezenas válidas (1..25), sem repetição.'); return; }
+
+  const hits = []; const hist = new Array(16).fill(0);
+  LAST_PORTFOLIO.results.forEach((r, i)=>{
+    const h = countHits(setRes, r.nums); hits.push(h); hist[h]++;
+    $(`hit_${i}`).textContent = h;
+    const flag = classify(h);
+    const fcell = $(`flag_${i}`);
+    fcell.textContent = flag.label; fcell.style.color = flag.color;
+  });
+
+  const maxHit = Math.max(...hits);
+  const summary = [15,14,13,12,11].map(k=>`<span class="kpi-pill">${k} pts: <b>${hist[k]||0}</b></span>`).join('');
+  if(!$('check-summary')) {
+    $('kpi-container').insertAdjacentHTML('beforeend', `<div id="check-summary" style="display:flex; flex-wrap:wrap; gap:10px; width: 100%; border-top: 1px solid var(--border-color); margin-top: 10px; padding-top: 10px;">${summary}</div>`);
+  } else {
+    $('check-summary').innerHTML = summary;
+  }
+
+  if(maxHit>=15){ toast(`<b>IMPARÁVEL!</b> 15 pontos — você quebrou a banca. Hoje é dia de festa.`); }
+  else if(maxHit===14){ toast(`<b>Monstro!</b> 14 pontos — faturamento pesado. Estratégia calibrada.`); }
+  else if(maxHit===13){ toast(`<b>Excelente!</b> 13 pontos — premiação consistente.`); }
+  else if(hist[11]||hist[12]){ toast(`Boas entradas: ${hist[12]||0} x 12 pts, ${hist[11]||0} x 11 pts.`); }
+  
+  showModal(false);
+  renderHistogram(hist);
+}
+
+function renderHistogram(hist){
+  let el = $('histWrap');
+  if(!el){
+    const wrap = document.createElement('div'); wrap.className='card'; wrap.id='histWrap'; wrap.style.marginTop='24px';
+    wrap.innerHTML = `<h3 style="margin:0 0 12px 0">Resumo de Acertos</h3><div id="histTable"></div>`;
+    $('resultsCard').insertAdjacentElement('afterend', wrap);
+    el = wrap;
+  }
+  const rows = [];
+  for(let k=15;k>=0;k--){ if(hist[k]>0) rows.push(`<tr><td>${k} pontos</td><td><b>${hist[k]}</b> jogos</td></tr>`); }
+  $('histTable').innerHTML = `<table><thead><tr><th>Faixa de Prêmio</th><th>Quantidade</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    setupNumberGrid();
+    parseAndUpdateSelectionFromInput();
+    fetchAdaptiveR();
+    $('lastDrawInput').addEventListener('input', parseAndUpdateSelectionFromInput);
+    $('generateBtn').addEventListener('click', handleGeneration);
+    $('checkBtn').addEventListener('click',()=>showModal(true));
+    $('closeModal').addEventListener('click',()=>showModal(false));
+    $('runCheck').addEventListener('click', runChecker);
+});
+</script>
+</body>
+</html>
+
