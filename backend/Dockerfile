@@ -1,22 +1,19 @@
 FROM python:3.11-slim
 
-# Define o diretório de trabalho onde a aplicação será executada
+# Define o diretório de trabalho dentro do container
 WORKDIR /app
 
-# Copia o arquivo de dependências para o diretório de trabalho.
-# Fazer isso separadamente aproveita o cache do Docker.
+# Como vamos dizer ao Coyeb para usar 'backend' como Root Directory,
+# os caminhos aqui são simples e diretos.
 COPY requirements.txt .
-
-# Instala as dependências listadas no requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia o código da aplicação (apenas o server.py) para o diretório de trabalho
-COPY server.py .
+# Copia todo o código do diretório 'backend' para /app
+COPY . .
 
-# Define as variáveis de ambiente para o servidor Uvicorn
+# Expõe a porta e define o host
 ENV PORT=8080
 ENV HOST=0.0.0.0
 
-# Comando que será executado quando o container iniciar.
-# Inicia o servidor FastAPI com Uvicorn.
+# Comando para iniciar o servidor
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]
